@@ -1,5 +1,6 @@
 import multer from 'multer';
 import { Request, Response } from 'express';
+import path from 'path';
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
@@ -7,7 +8,8 @@ const storage = multer.diskStorage({
     },
     filename: function (req, file, cb) {
         const uniqueSuffix = Date.now();
-        cb(null, uniqueSuffix + '-' + file.originalname);
+        const safeBaseName = path.basename(file.originalname).replace(/[\/\\]/g, '_').replace(/\.\.+/g, '_');
+        cb(null, uniqueSuffix + '-' + safeBaseName);
     }
 });
 

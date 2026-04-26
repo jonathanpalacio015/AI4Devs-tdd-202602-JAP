@@ -4,7 +4,19 @@ import { Education } from '../../domain/models/Education';
 import { WorkExperience } from '../../domain/models/WorkExperience';
 import { Resume } from '../../domain/models/Resume';
 
+const getRollbackClient = () => {
+    try {
+        const prismaPackage = require('@prisma/client');
+        const PrismaClient = prismaPackage.PrismaClient;
+        return new PrismaClient();
+    } catch {
+        return null;
+    }
+};
+
 export const addCandidate = async (candidateData: any) => {
+    let createdCandidateId: number | undefined;
+
     try {
         validateCandidateData(candidateData); // Validar los datos del candidato
     } catch (error: any) {
@@ -15,6 +27,7 @@ export const addCandidate = async (candidateData: any) => {
     try {
         const savedCandidate = await candidate.save(); // Guardar el candidato en la base de datos
         const candidateId = savedCandidate.id; // Obtener el ID del candidato guardado
+        createdCandidateId = candidateId;
 
         // Guardar la educación del candidato
         if (candidateData.educations) {
@@ -45,6 +58,17 @@ export const addCandidate = async (candidateData: any) => {
         }
         return savedCandidate;
     } catch (error: any) {
+        if (createdCandidateId) {
+            const rollbackClient = getRollbackClient();
+            if (rollbackClient) {
+                try {
+                    await rollbackClient.candidate.delete({ where: { id: createdCandidateId } });
+                } catch {
+                    // No ocultar el error original si el rollback falla
+                }
+            }
+        }
+
         if (error.code === 'P2002') {
             // Unique constraint failed on the fields: (`email`)
             throw new Error('The email already exists in the database');

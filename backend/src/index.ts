@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import candidateRoutes from './routes/candidateRoutes';
 import { uploadFile } from './application/services/fileUploadService';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 
 // Extender la interfaz Request para incluir prisma
 declare global {
@@ -36,11 +37,23 @@ app.use(cors({
   credentials: true
 }));
 
+const candidateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: 'Too many candidate requests from this IP, please try again later.'
+});
+
+const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: 'Too many upload requests from this IP, please try again later.'
+});
+
 // Import and use candidateRoutes
-app.use('/candidates', candidateRoutes);
+app.use('/candidates', candidateLimiter, candidateRoutes);
 
 // Route for file uploads
-app.post('/upload', uploadFile);
+app.post('/upload', uploadLimiter, uploadFile);
 
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
